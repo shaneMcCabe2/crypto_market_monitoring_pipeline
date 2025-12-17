@@ -1,0 +1,41 @@
+# Environment variables
+.env
+
+# Project planning docs
+crypto_pipeline_project_outline.txt
+
+# Service account credentials
+*.json
+config/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+
+# Pipenv
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# Data files (optional - if you store any locally)
+data/
+*.csv
+*.parquet
