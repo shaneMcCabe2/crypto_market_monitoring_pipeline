@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: crypto_pipeline
+    database: crypto-market-pipeline
+    schema: crypto_pipeline
+    tables:
+      - name: stg_prices_raw
+        description: "Raw price data from CoinGecko API"
+      - name: stg_sentiment_raw
+        description: "Raw sentiment data from Fear & Greed Index"

@@ -11,6 +11,7 @@ praw = "*"
 google-cloud-bigquery = "*"
 google-cloud-storage = "*"
 db-dtypes = "*"
+dbt-bigquery = "*"
 
 [dev-packages]
 
