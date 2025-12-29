@@ -312,10 +312,53 @@ pipenv run dbt test --select dim_coin
   - Not-null constraints
   - Uniqueness validation
   - Referential integrity checks
+- ✅ Phase 6: Analytics and visualizations
+  - Python-based analytics with insights
+  - 7 visualization outputs
+  - Business value demonstration
+- ✅ Phase 7: Automation and deployment
+  - GitHub Actions scheduled ingestion (hourly)
+  - CI/CD pipeline with automated testing
+  - Production-ready deployment
 
-**Next Steps:**
-- ⏳ Phase 6: Dashboards and analytics
-- ⏳ Phase 7: Documentation and polish
+**In Progress:**
+- 🔄 Phase 8: Data accumulation and interactive dashboard
+  - Collecting hourly data for trend analysis
+  - Building Streamlit interactive dashboard
+  - Enhanced visualizations with more data points
+
+**Project Status:** Production-ready, actively collecting data
+
+## Sample Visualizations
+
+The pipeline generates insights and visualizations from the collected data:
+
+### Market Overview
+![Top Coins by Market Cap](analytics/top_coins_market_cap.png)
+*Top 10 cryptocurrencies ranked by market capitalization*
+
+![Market Cap Distribution](analytics/market_cap_distribution.png)
+*Market dominance distribution across major cryptocurrencies*
+
+### Price Analysis
+![Price Trends](analytics/price_trends.png)
+*Historical price movements for top cryptocurrencies*
+
+![Volatility Analysis](analytics/volatility_analysis.png)
+*Volatility metrics showing most volatile cryptocurrencies*
+
+### Sentiment and Patterns
+![Sentiment vs Price](analytics/sentiment_vs_price.png)
+*Correlation between market sentiment and price changes*
+
+![Hourly Patterns](analytics/hourly_patterns.png)
+*Price movement patterns by hour of day*
+
+### Pipeline Health
+![Pipeline Health Metrics](analytics/pipeline_health.png)
+*Data ingestion frequency and volume tracking*
+
+All visualizations are automatically generated from the data pipeline and can be found in the `analytics/` directory.
 
 ## Key Features
 
@@ -353,7 +396,16 @@ Data organized by `YYYY/MM/DD/HH/` structure for efficient querying and cost opt
 
 ### Dimensional Layer
 - **dim_coin**: Coin attributes (50 coins)
-  - Includes SCD Type 2 fields for tracking changes over time
+  - Includes SCD Type 2 field## Future Enhancements
+
+- Implement Prefect for orchestration and monitoring
+- Add real-time dashboards with Tableau/Looker
+- Implement anomaly detection for price spikes
+- Add on-chain metrics (transaction volumes, wallet activity)
+- Implement data versioning and lineage tracking
+- Add machine learning models for price prediction
+- Create alerting system for significant market movements
+s for tracking changes over time
 - **dim_timestamp**: Time dimension with date parts
   - Includes hour, day_of_week, month, is_weekend, etc.
 
@@ -367,13 +419,17 @@ Data organized by `YYYY/MM/DD/HH/` structure for efficient querying and cost opt
 
 ## Future Enhancements
 
-- Implement Prefect for orchestration and monitoring
-- Add real-time dashboards with Tableau/Looker
-- Implement anomaly detection for price spikes
+### Planned (Phase 8)
+- Interactive Streamlit dashboard with real-time filtering
+- Enhanced trend visualizations with accumulated data
+- Comparative analysis across multiple time windows
+
+### Potential Extensions
+- Add alerting system for significant market movements
+- Implement anomaly detection for unusual price patterns
 - Add on-chain metrics (transaction volumes, wallet activity)
-- Implement data versioning and lineage tracking
-- Add machine learning models for price prediction
-- Create alerting system for significant market movements
+- Machine learning models for price prediction
+- Cost monitoring and optimization queries
 
 ## Development
 
