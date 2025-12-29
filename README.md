@@ -273,6 +273,36 @@ pipenv run dbt run --select fact_price_snapshots
 pipenv run dbt test --select dim_coin
 ```
 
+### Automated Scheduling
+
+The pipeline runs automatically via GitHub Actions on an hourly schedule:
+
+**Automated Execution:**
+- Configured in `.github/workflows/scheduled_ingestion.yml`
+- Runs every hour at minute 0 (e.g., 1:00, 2:00, 3:00...)
+- Executes full pipeline: ingest → load → transform → test
+- Requires GitHub Secrets to be configured (see Setup)
+
+**Manual Trigger:**
+1. Go to GitHub repo → Actions tab
+2. Select "Scheduled Data Ingestion" workflow
+3. Click "Run workflow" → "Run workflow"
+
+**Monitoring:**
+- View execution history in Actions tab
+- Green checkmark = successful run
+- Red X = failed run (click for error logs)
+- Each run takes ~2-5 minutes
+
+The automated workflow handles:
+- Dependency installation and caching
+- GCP authentication via secrets
+- Data ingestion from APIs
+- BigQuery staging load
+- dbt transformations
+- Data quality tests
+- Error notifications
+
 ## Data Sources
 
 ### CoinGecko API
