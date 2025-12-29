@@ -62,6 +62,11 @@ jobs:
               timeout_seconds: 300
           target: dev
         EOF
+
+    - name: Install dbt dependencies
+      run: |
+        cd dbt/crypto_pipeline
+        pipenv run dbt deps    
         
     - name: Run dbt transformations
       run: |
