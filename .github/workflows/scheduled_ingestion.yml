@@ -44,7 +44,25 @@ jobs:
     
     - name: Load to staging
       run: pipenv run python load_to_staging.py
-    
+
+    - name: Set up dbt profiles
+      run: |
+        mkdir -p ~/.dbt
+        cat > ~/.dbt/profiles.yml << EOF
+        crypto_pipeline:
+          outputs:
+            dev:
+              type: bigquery
+              method: service-account
+              project: ${{ secrets.GCP_PROJECT_ID }}
+              dataset: crypto_pipeline
+              threads: 4
+              keyfile: ${{ github.workspace }}/config/gcp-service-account.json
+              location: US
+              timeout_seconds: 300
+          target: dev
+        EOF
+        
     - name: Run dbt transformations
       run: |
         cd dbt/crypto_pipeline
