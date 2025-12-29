@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: dim_coin
+    description: "Dimension table for cryptocurrency coins"
+    columns:
+      - name: coin_key
+        description: "Surrogate key for coin"
+        tests:
+          - not_null
+          - unique
+      - name: coin_id
+        description: "Natural key from API"
+        tests:
+          - not_null
+
+  - name: dim_timestamp
+    description: "Time dimension with date parts"
+    columns:
+      - name: timestamp_key
+        description: "Surrogate key for timestamp"
+        tests:
+          - not_null
+          - unique
+      - name: timestamp
+        tests:
+          - not_null
+
+  - name: fact_price_snapshots
+    description: "Price measurements over time"
+    columns:
+      - name: snapshot_id
+        description: "Unique identifier for this snapshot"
+        tests:
+          - not_null
+          - unique
+      - name: coin_key
+        description: "Foreign key to dim_coin"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_coin')
+                field: coin_key
+      - name: timestamp_key
+        description: "Foreign key to dim_timestamp"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_timestamp')
+                field: timestamp_key
+      - name: current_price
+        description: "Price in USD"
+        tests:
+          - not_null
+
+  - name: fact_sentiment
+    description: "Market sentiment over time"
+    columns:
+      - name: sentiment_id
+        tests:
+          - not_null
+          - unique
+      - name: timestamp_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_timestamp')
+                field: timestamp_key
+      - name: sentiment_value
+        tests:
+          - not_null

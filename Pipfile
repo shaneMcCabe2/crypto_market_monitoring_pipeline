@@ -12,6 +12,8 @@ google-cloud-bigquery = "*"
 google-cloud-storage = "*"
 db-dtypes = "*"
 dbt-bigquery = "*"
+matplotlib = "*"
+seaborn = "*"
 
 [dev-packages]
 

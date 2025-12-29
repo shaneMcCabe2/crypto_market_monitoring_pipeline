@@ -1,10 +1,22 @@
 -- Dimension table for timestamps
 {{ config(materialized='table') }}
 
-WITH timestamps AS (
+WITH price_timestamps AS (
     SELECT DISTINCT
         fetch_timestamp as timestamp
     FROM {{ ref('stg_prices') }}
+),
+
+sentiment_timestamps AS (
+    SELECT DISTINCT
+        fetch_timestamp as timestamp
+    FROM {{ ref('stg_sentiment') }}
+),
+
+all_timestamps AS (
+    SELECT timestamp FROM price_timestamps
+    UNION DISTINCT
+    SELECT timestamp FROM sentiment_timestamps
 )
 
 SELECT
@@ -20,4 +32,4 @@ SELECT
     EXTRACT(QUARTER FROM timestamp) as quarter,
     EXTRACT(YEAR FROM timestamp) as year,
     EXTRACT(DAYOFWEEK FROM timestamp) IN (1, 7) as is_weekend
-FROM timestamps
+FROM all_timestamps
