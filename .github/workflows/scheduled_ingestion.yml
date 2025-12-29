@@ -1,0 +1,57 @@
+name: Scheduled Data Ingestion
+
+on:
+  schedule:
+    # Run every hour at minute 0
+    - cron: '0 * * * *'
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
+
+jobs:
+  ingest-and-transform:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        pip install pipenv
+        pipenv install
+    
+    - name: Create config directory
+      run: mkdir -p config
+    
+    - name: Write GCP service account key
+      run: echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > config/gcp-service-account.json
+    
+    - name: Create .env file
+      run: |
+        echo "GOOGLE_APPLICATION_CREDENTIALS=./config/gcp-service-account.json" > .env
+        echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> .env
+        echo "GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}" >> .env
+        echo "BQ_DATASET=crypto_pipeline" >> .env
+    
+    - name: Run ingestion
+      run: |
+        cd src/ingestion
+        pipenv run python run_ingestion.py
+    
+    - name: Load to staging
+      run: pipenv run python load_to_staging.py
+    
+    - name: Run dbt transformations
+      run: |
+        cd dbt/crypto_pipeline
+        pipenv run dbt run
+    
+    - name: Run dbt tests
+      run: |
+        cd dbt/crypto_pipeline
+        pipenv run dbt test
+      continue-on-error: true  # Don't fail the workflow if tests fail
