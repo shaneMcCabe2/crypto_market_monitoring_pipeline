@@ -44,3 +44,11 @@ data/
 dbt/crypto_pipeline/target/
 dbt/crypto_pipeline/dbt_packages/
 dbt/crypto_pipeline/logs/
+
+# Duplicate dbt directories
+crypto_pipeline/
+
+# Log files
+logs/
+*.log
+
