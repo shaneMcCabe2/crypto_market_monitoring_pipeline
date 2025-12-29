@@ -1,6 +1,6 @@
 # Crypto Market Monitoring Pipeline
 
-An end-to-end data engineering project that ingests cryptocurrency market data from multiple sources, processes it incrementally, and surfaces insights through analytics and dashboards.
+An end-to-end data engineering project that ingests cryptocurrency market data from multiple sources, transforms it using dbt, and implements data quality monitoring with a dimensional model (STAR schema).
 
 ## Project Overview
 
@@ -8,51 +8,94 @@ This pipeline demonstrates:
 - Multi-source data ingestion (price and sentiment data)
 - Cloud-based data storage and warehousing (Google Cloud Platform)
 - Incremental data processing with dbt
-- Dimensional modeling (star schema)
-- Data quality monitoring and validation
-- Automated orchestration
+- Dimensional modeling (STAR schema)
+- Data quality testing and validation
+- Modern data transformation workflows
 
 ## Architecture
 
 ```
 [CoinGecko API] ──┐
-                  ├─> [Python Ingestion] -> [GCS Storage] -> [BigQuery Staging] -> [dbt Transformation] -> [Dashboards]
+                  ├─> [Python Ingestion] -> [GCS Storage] -> [BigQuery Staging] -> [dbt Transformation] -> [Dimensional Model]
 [Fear & Greed] ───┘
 ```
 
 ### Data Flow
 1. **Sources**: CoinGecko API (prices/volume), Fear & Greed Index (market sentiment)
 2. **Landing Zone**: Raw JSON files in Google Cloud Storage with timestamp partitioning
-3. **Staging**: BigQuery tables for initial data landing
-4. **Warehouse**: Star schema with fact and dimension tables
-5. **Presentation**: Dashboards and analytics via Tableau/Looker
+3. **Staging**: BigQuery tables for initial data landing (stg_prices_raw, stg_sentiment_raw)
+4. **Transformation**: dbt models clean and transform data
+5. **Warehouse**: STAR schema with fact and dimension tables
+6. **Quality**: Automated data quality tests via dbt
+
+### STAR Schema Design
+
+```
+        dim_coin                    dim_timestamp
+        --------                    -------------
+        coin_key  <---+         +-> timestamp_key
+        coin_id       |         |   date
+        symbol        |         |   hour
+        name          |         |   day_name
+                      |         |   is_weekend
+                      |         |
+             fact_price_snapshots
+             --------------------
+             snapshot_id
+             coin_key    ---------+
+             timestamp_key -------+
+             current_price
+             market_cap
+             total_volume
+             ...
+
+             fact_sentiment
+             --------------
+             sentiment_id
+             timestamp_key -------+
+             sentiment_value
+             sentiment_classification
+```
 
 ## Technology Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Language | Python 3.11+ |
+| Language | Python 3.12+ |
 | Environment | pipenv |
 | Cloud Platform | Google Cloud Platform |
 | Storage | Google Cloud Storage |
 | Data Warehouse | BigQuery |
-| Transformation | dbt |
-| Orchestration | Python (future: Prefect) |
-| Visualization | Tableau/Looker/Power BI |
+| Transformation | dbt Core 1.11+ |
+| Orchestration | Python scripts |
+| Data Quality | dbt tests |
 
 ## Project Structure
 
 ```
 crypto_market_monitoring_pipeline/
 ├── src/
-│   ├── ingestion/
-│   │   ├── fetch_prices.py       # CoinGecko price data ingestion
-│   │   ├── fetch_sentiment.py    # Fear & Greed sentiment ingestion
-│   │   ├── run_ingestion.py      # Orchestration script
-│   │   └── test_apis.py          # API connectivity tests
-│   ├── transformations/          # Future: dbt-independent transforms
-│   └── quality_checks/           # Future: data quality scripts
-├── dbt/                          # Future: dbt project
+│   └── ingestion/
+│       ├── fetch_prices.py       # CoinGecko price data ingestion
+│       ├── fetch_sentiment.py    # Fear & Greed sentiment ingestion
+│       ├── run_ingestion.py      # Orchestration script
+│       └── test_apis.py          # API connectivity tests
+├── dbt/
+│   └── crypto_pipeline/
+│       ├── models/
+│       │   ├── staging/
+│       │   │   ├── stg_prices.sql      # Cleaned price data
+│       │   │   ├── stg_sentiment.sql   # Cleaned sentiment data
+│       │   │   ├── sources.yml         # Source table definitions
+│       │   │   └── schema.yml          # Staging tests
+│       │   └── marts/
+│       │       ├── dim_coin.sql        # Coin dimension
+│       │       ├── dim_timestamp.sql   # Time dimension
+│       │       ├── fact_price_snapshots.sql  # Price facts (incremental)
+│       │       ├── fact_sentiment.sql  # Sentiment facts (incremental)
+│       │       └── schema.yml          # Dimension/fact tests
+│       ├── dbt_project.yml
+│       └── packages.yml
 ├── config/
 │   └── gcp-service-account.json  # GCP credentials (gitignored)
 ├── docs/
@@ -63,14 +106,17 @@ crypto_market_monitoring_pipeline/
 ├── .gitignore
 ├── Pipfile
 ├── Pipfile.lock
-├── README.md
-└── test_bigquery_connection.py   # GCP connection test
+├── init_staging_tables.py        # Initialize BigQuery staging tables
+├── init_dimensional_model.py     # Initialize dimensional model tables
+├── load_to_staging.py            # Load GCS data to BigQuery staging
+├── test_bigquery_connection.py   # GCP connection test
+└── README.md
 ```
 
 ## Setup Instructions
 
 ### Prerequisites
-- Python 3.11 or higher
+- Python 3.12 or higher
 - pipenv (`pip install pipenv`)
 - Google Cloud Platform account
 - Git
@@ -85,8 +131,8 @@ cd crypto_market_monitoring_pipeline
 ### 2. Set Up Python Environment
 
 ```bash
-# Create virtual environment and install dependencies
-pipenv install
+# Create virtual environment with Python 3.12 and install dependencies
+pipenv install --python 3.12
 
 # Activate the environment
 pipenv shell
@@ -102,7 +148,7 @@ pipenv shell
 #### Create GCS Bucket
 1. Navigate to Cloud Storage → Buckets
 2. Create bucket: `crypto-pipeline-raw-data`
-3. Choose region matching your BigQuery dataset
+3. Choose region matching your BigQuery dataset (US)
 
 #### Create Service Account
 1. Go to IAM & Admin → Service Accounts
@@ -127,60 +173,104 @@ GCS_BUCKET_NAME=crypto-pipeline-raw-data
 BQ_DATASET=crypto_pipeline
 ```
 
-### 5. Test GCP Connection
+### 5. Configure dbt Profile
+
+Create `~/.dbt/profiles.yml`:
+
+```yaml
+crypto_pipeline:
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: your-project-id
+      dataset: crypto_pipeline
+      threads: 4
+      keyfile: /absolute/path/to/config/gcp-service-account.json
+      location: US
+      timeout_seconds: 300
+  target: dev
+```
+
+### 6. Test Connections
 
 ```bash
+# Test GCP connectivity
 pipenv run python test_bigquery_connection.py
-```
 
-You should see successful connections to both BigQuery and Cloud Storage.
-
-### 6. Test API Access
-
-```bash
+# Test API connectivity
 pipenv run python src/ingestion/test_apis.py
+
+# Test dbt connection
+cd dbt/crypto_pipeline
+pipenv run dbt debug
 ```
 
-This verifies connectivity to CoinGecko and Fear & Greed Index APIs.
+You should see successful connections for all three tests.
 
 ## Usage
 
-### Manual Ingestion
-
-Run individual ingestion scripts:
+### Complete Pipeline Setup (First Time)
 
 ```bash
-# Fetch price data
-pipenv run python src/ingestion/fetch_prices.py
+# 1. Initialize BigQuery tables
+pipenv run python init_staging_tables.py
+pipenv run python init_dimensional_model.py
 
-# Fetch sentiment data
-pipenv run python src/ingestion/fetch_sentiment.py
-```
-
-### Full Pipeline
-
-Run both ingestion jobs together:
-
-```bash
+# 2. Run ingestion to collect data
 cd src/ingestion
 pipenv run python run_ingestion.py
+
+# 3. Load data to BigQuery staging
+cd ../..
+pipenv run python load_to_staging.py
+
+# 4. Run dbt transformations
+cd dbt/crypto_pipeline
+pipenv run dbt run
+
+# 5. Run data quality tests
+pipenv run dbt test
 ```
 
-### Scheduled Ingestion (Optional)
+### Daily Operations
 
-**Windows (Task Scheduler):**
-1. Open Task Scheduler
-2. Create Basic Task
-3. Trigger: Daily, repeat every 15 minutes
-4. Action: `python.exe C:\path\to\crypto_pipeline\src\ingestion\run_ingestion.py`
+After initial setup, run the pipeline with:
 
-**Linux/Mac (cron):**
 ```bash
-# Edit crontab
-crontab -e
+# 1. Ingest new data
+cd src/ingestion
+pipenv run python run_ingestion.py
 
-# Add entry to run every 15 minutes
-*/15 * * * * cd /path/to/crypto_pipeline/src/ingestion && /path/to/pipenv run python run_ingestion.py
+# 2. Load to staging
+cd ../..
+pipenv run python load_to_staging.py
+
+# 3. Transform (incremental - only processes new data)
+cd dbt/crypto_pipeline
+pipenv run dbt run
+
+# 4. Test data quality
+pipenv run dbt test
+```
+
+### Individual Components
+
+```bash
+# Fetch price data only
+pipenv run python src/ingestion/fetch_prices.py
+
+# Fetch sentiment data only
+pipenv run python src/ingestion/fetch_sentiment.py
+
+# Run specific dbt models
+cd dbt/crypto_pipeline
+pipenv run dbt run --select stg_prices
+pipenv run dbt run --select dim_coin
+pipenv run dbt run --select fact_price_snapshots
+
+# Test specific models
+pipenv run dbt test --select dim_coin
 ```
 
 ## Data Sources
@@ -196,7 +286,7 @@ crontab -e
 - **Endpoint**: `https://api.alternative.me/fng/`
 - **Data**: Market sentiment score (0-100)
 - **Rate Limit**: No official limit
-- **Update Frequency**: Daily (but queried every 15 min with price data)
+- **Update Frequency**: Daily (queried every 15 min)
 - **No authentication required**
 
 ## Current Status
@@ -208,39 +298,82 @@ crontab -e
   - Sentiment data ingestion from Fear & Greed Index
   - Local and GCS storage with timestamp partitioning
   - Orchestration script for running both jobs
+- ✅ Phase 3: Data warehouse design
+  - BigQuery staging tables created
+  - Data loaded from GCS to staging
+  - Dimensional model (STAR schema) defined
+- ✅ Phase 4: dbt transformation layer
+  - Staging models for data cleaning
+  - Dimension tables (dim_coin, dim_timestamp)
+  - Fact tables with incremental processing
+  - Foreign key relationships established
+- ✅ Phase 5: Data quality monitoring
+  - 16 automated data quality tests
+  - Not-null constraints
+  - Uniqueness validation
+  - Referential integrity checks
 
-**In Progress:**
-- 🔄 Phase 3: Data warehouse design (staging tables, dimensional model)
-
-**Planned:**
-- ⏳ Phase 4: dbt transformation layer
-- ⏳ Phase 5: Data quality monitoring
+**Next Steps:**
 - ⏳ Phase 6: Dashboards and analytics
 - ⏳ Phase 7: Documentation and polish
 
 ## Key Features
 
+### Incremental Processing
+Fact tables use dbt's incremental materialization to only process new data on subsequent runs, reducing compute costs and improving performance.
+
+### Data Quality Testing
+Automated tests verify:
+- **Not-null constraints**: Critical fields contain data
+- **Uniqueness**: Primary keys are unique
+- **Referential integrity**: Foreign keys match dimension tables
+- **All 16 tests currently passing**
+
 ### Idempotent Ingestion
-Scripts can be safely re-run without creating duplicate data. Each run creates a new timestamped file.
+Ingestion scripts can be safely re-run without creating duplicate data. Each run creates a new timestamped file.
+
+### STAR Schema Design
+Optimized dimensional model with:
+- **2 dimension tables**: Coins and timestamps with useful attributes
+- **2 fact tables**: Price snapshots and sentiment measurements
+- **Clear grain**: One row = one observation at one point in time
+- **Denormalized dimensions**: Optimized for query performance
 
 ### Error Handling
 Comprehensive error handling with detailed logging. Failed GCS uploads don't prevent local saves.
 
-### Data Validation
-Basic schema validation ensures required fields are present before saving data.
-
 ### Timestamp Partitioning
-Data organized by `YYYY/MM/DD/HH/` structure for efficient querying and management.
+Data organized by `YYYY/MM/DD/HH/` structure for efficient querying and cost optimization.
+
+## Data Models
+
+### Staging Layer
+- **stg_prices**: Cleaned price data with standardized timestamps
+- **stg_sentiment**: Cleaned sentiment data with standardized timestamps
+
+### Dimensional Layer
+- **dim_coin**: Coin attributes (50 coins)
+  - Includes SCD Type 2 fields for tracking changes over time
+- **dim_timestamp**: Time dimension with date parts
+  - Includes hour, day_of_week, month, is_weekend, etc.
+
+### Fact Layer
+- **fact_price_snapshots**: Price measurements (incremental)
+  - Grain: One coin at one point in time
+  - Includes price, volume, market cap, and changes
+- **fact_sentiment**: Market sentiment (incremental)
+  - Grain: One sentiment reading at one point in time
+  - Includes 0-100 score and classification
 
 ## Future Enhancements
 
 - Implement Prefect for orchestration and monitoring
-- Add incremental processing in dbt
-- Implement data quality tests with Great Expectations
-- Add anomaly detection for price spikes
-- Create interactive dashboards
+- Add real-time dashboards with Tableau/Looker
+- Implement anomaly detection for price spikes
 - Add on-chain metrics (transaction volumes, wallet activity)
 - Implement data versioning and lineage tracking
+- Add machine learning models for price prediction
+- Create alerting system for significant market movements
 
 ## Development
 
@@ -252,6 +385,10 @@ pipenv run python test_bigquery_connection.py
 
 # Test API connectivity
 pipenv run python src/ingestion/test_apis.py
+
+# Test dbt models and data quality
+cd dbt/crypto_pipeline
+pipenv run dbt test
 ```
 
 ### Adding Dependencies
@@ -259,6 +396,14 @@ pipenv run python src/ingestion/test_apis.py
 ```bash
 pipenv install package-name
 ```
+
+### dbt Best Practices Used
+- Clear separation of staging and marts layers
+- Incremental materialization for large fact tables
+- Comprehensive data quality tests
+- Source definitions for raw tables
+- Documentation in schema.yml files
+- Dependency management with {{ ref() }}
 
 ### Code Style
 - Follow PEP 8 style guidelines
@@ -271,16 +416,44 @@ pipenv install package-name
 ### GCS Upload Fails
 - Verify service account has Storage Object Admin role
 - Check `GCS_BUCKET_NAME` in `.env` matches actual bucket name
-- Ensure bucket exists and is in correct region
+- Ensure bucket exists and is in correct region (US)
 
 ### BigQuery Connection Fails
 - Verify service account has BigQuery roles
 - Check `GCP_PROJECT_ID` in `.env` is correct
 - Ensure BigQuery API is enabled
 
+### dbt Connection Fails
+- Check `~/.dbt/profiles.yml` has correct project ID and keyfile path
+- Use absolute path for keyfile, not relative
+- Run `dbt debug` to diagnose connection issues
+
 ### API Rate Limits
 - CoinGecko free tier: 10-50 calls/min
 - If hitting limits, reduce ingestion frequency or add delays
+
+### dbt Tests Failing
+- Check data has been ingested and loaded to staging
+- Verify all dbt models have run successfully with `dbt run`
+- Review specific test failures in output for root cause
+
+## Technical Highlights
+
+### Why dbt?
+This project uses dbt (data build tool) for transformations because it provides:
+- **Automatic dependency management**: Models run in correct order
+- **Incremental processing**: Only process new data
+- **Built-in testing**: Data quality validation
+- **Version control**: SQL transformations in Git
+- **Documentation**: Auto-generated lineage and docs
+
+### Why STAR Schema?
+The STAR schema is an industry-standard dimensional modeling approach that:
+- Optimizes query performance (fewer joins)
+- Makes data accessible to business users
+- Integrates easily with BI tools
+- Provides consistent grain for aggregations
+- Separates facts (measurements) from dimensions (context)
 
 ## Contributing
 
@@ -301,3 +474,5 @@ Shane McCabe
 - [CoinGecko](https://www.coingecko.com) for cryptocurrency market data
 - [alternative.me](https://alternative.me) for Fear & Greed Index
 - Google Cloud Platform for infrastructure
+- [dbt Labs](https://www.getdbt.com/) for the transformation framework
+
