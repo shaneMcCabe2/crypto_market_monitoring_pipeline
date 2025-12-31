@@ -1,4 +1,5 @@
 # Crypto Market Monitoring Pipeline
+## (In progress)
 
 An end-to-end data engineering project that ingests cryptocurrency market data from multiple sources, transforms it using dbt, and implements data quality monitoring with a dimensional model (STAR schema).
 
@@ -561,4 +562,5 @@ Shane McCabe
 - [alternative.me](https://alternative.me) for Fear & Greed Index
 - Google Cloud Platform for infrastructure
 - [dbt Labs](https://www.getdbt.com/) for the transformation framework
+
 
